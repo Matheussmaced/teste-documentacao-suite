@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { loginWithCredentials, loginWithApiKey } from '@/services/api/auth';
+import { loginWithCredentials, loginWithApiKey, getMe } from '@/services/api/auth';
 import { saveToken, getToken } from '@/lib/token';
+import type { User } from '@/types/auth';
 import { Field } from '@/components/ui/Field';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { Alert } from '@/components/ui/Alert';
@@ -18,11 +19,20 @@ export default function ConfiguracaoPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [isConfigured, setIsConfigured] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    setIsConfigured(!!getToken());
+    if (getToken()) fetchUser();
   }, []);
+
+  async function fetchUser() {
+    try {
+      const data = await getMe();
+      setUser(data);
+    } catch {
+      setUser(null);
+    }
+  }
 
   function reset() {
     setError('');
@@ -49,6 +59,7 @@ export default function ConfiguracaoPage() {
       saveToken(token);
       setSuccess(true);
       setCredForm({ email: '', password: '', tenant: '' });
+      await fetchUser();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao autenticar');
     } finally {
@@ -68,6 +79,7 @@ export default function ConfiguracaoPage() {
       saveToken(token);
       setSuccess(true);
       setApiKeyForm({ api_key: '', tenant: '' });
+      await fetchUser();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao autenticar');
     } finally {
@@ -82,10 +94,33 @@ export default function ConfiguracaoPage() {
         Autentique na API InterSuite para desbloquear as funcionalidades do sistema.
       </p>
 
-      {isConfigured && !success && (
-        <Alert variant="success" title="API InterSuite conectada" className="mb-6">
-          Token ativo. Reautentique abaixo para atualizá-lo.
-        </Alert>
+      {/* Usuário autenticado */}
+      {user && (
+        <Card className="p-4 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-semibold text-zinc-300 shrink-0">
+                {user.name.charAt(0).toUpperCase()}{user.last_name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">
+                  {user.name} {user.last_name}
+                </p>
+                <p className="text-xs text-zinc-500">{user.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {user.is_adm && (
+                <span className="text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded px-2 py-0.5">
+                  Admin
+                </span>
+              )}
+              <span className="text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700 rounded px-2 py-0.5">
+                {user.group.name}
+              </span>
+            </div>
+          </div>
+        </Card>
       )}
 
       {success && (
@@ -94,6 +129,7 @@ export default function ConfiguracaoPage() {
         </Alert>
       )}
 
+      {/* Card de autenticação */}
       <Card className="p-6">
         <EndpointBadge method="POST" path="/auth/login" visibility="Público" />
 
@@ -126,7 +162,6 @@ export default function ConfiguracaoPage() {
               value={credForm.password} onChange={handleCredChange} required tag="string · Obrigatório" mono />
 
             {error && <Alert variant="error">{error}</Alert>}
-
             <SubmitButton loading={loading} label="Autenticar" />
           </form>
         )}
@@ -147,7 +182,6 @@ export default function ConfiguracaoPage() {
               value={apiKeyForm.api_key} onChange={handleApiKeyChange} required tag="string · Obrigatório" mono />
 
             {error && <Alert variant="error">{error}</Alert>}
-
             <SubmitButton loading={loading} label="Autenticar com API Key" />
           </form>
         )}

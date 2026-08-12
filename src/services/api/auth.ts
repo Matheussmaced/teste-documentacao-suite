@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { api } from './api';
-import type { LoginCredentials, LoginApiKey, AuthResponse, ApiErrorResponse } from '@/types/auth';
+import type { LoginCredentials, LoginApiKey, AuthResponse, ApiErrorResponse, User, UserMeResponse } from '@/types/auth';
 
 function handleAuthError(err: unknown): never {
   if (axios.isAxiosError<ApiErrorResponse>(err)) {
@@ -24,6 +24,18 @@ export async function loginWithCredentials(
     return data;
   } catch (err) {
     handleAuthError(err);
+  }
+}
+
+export async function getMe(): Promise<User> {
+  try {
+    const { data } = await api.get<UserMeResponse>('/auth/me');
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError<ApiErrorResponse>(err)) {
+      if (err.response?.status === 401) throw new Error('Token ausente, inválido ou expirado.');
+    }
+    throw new Error('Erro ao buscar dados do usuário.');
   }
 }
 
