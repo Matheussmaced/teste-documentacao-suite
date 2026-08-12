@@ -18,6 +18,31 @@ O dono do projeto **não tem conhecimento de certificação digital** — a API 
 - `Authorization: <token>` — sem prefixo Bearer.
 - Ambiente de homologação: `https://backhomolog.intersuite.com.br/api` (definido em `NEXT_PUBLIC_API_URL`).
 
+## Navegação (Sidebar)
+
+O sidebar usa um sistema de flyout em cascata (abre painéis à direita, não dropdown para baixo). Estrutura de até 3 níveis:
+
+```
+Sidebar principal (w-56)
+└── Item com filhos → Flyout L1 (w-44, abre à direita)
+                      └── Item com filhos → Flyout L2 (w-44, abre à direita)
+                                            └── Links finais (rotas)
+```
+
+**Para adicionar novos itens de menu**, editar apenas o `navConfig` no topo de `src/app/dashboard/_components/Sidebar.tsx`. Não mexer na lógica do componente.
+
+Estrutura atual do navConfig:
+```
+Início               → /dashboard
+Certificação
+  └── Pessoas
+        ├── Listar   → /dashboard/certificacao/pessoas
+        └── Cadastrar → /dashboard/certificacao/pessoas/novo
+Configuração         → /dashboard/configuracao
+```
+
+O fluxo completo de certificação é dividido em: **Pessoas** (CRUD completo) → **Venda** → outros. Cada grupo novo de endpoints vira uma entrada no navConfig sob "Certificação".
+
 ## Estrutura de pastas relevante
 
 ```
@@ -27,13 +52,14 @@ src/
 │   ├── dashboard/
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
-│   │   ├── _components/Sidebar.tsx
-│   │   └── configuracao/page.tsx
-│   └── proxy.ts              ← proteção de rotas (substitui middleware no Next.js 16)
-├── components/ui/            ← componentes reutilizáveis (Field, Card, Alert, etc.)
+│   │   ├── _components/Sidebar.tsx   ← navConfig aqui
+│   │   ├── configuracao/page.tsx
+│   │   └── certificacao/             ← páginas dos endpoints (a criar)
+│   └── proxy.ts                      ← proteção de rotas (Next.js 16)
+├── components/ui/                    ← Field, Card, Alert, EndpointBadge, etc.
 ├── services/api/
-│   ├── api.ts                ← instância axios + interceptors de log e auth
-│   └── auth.ts               ← loginWithCredentials, loginWithApiKey
+│   ├── api.ts                        ← instância axios + interceptors de log e auth
+│   └── auth.ts                       ← loginWithCredentials, loginWithApiKey, getMe, logout
 ├── types/auth.ts
-└── lib/token.ts              ← save/get/removeToken (cookie intersuite_token)
+└── lib/token.ts                      ← save/get/removeToken (cookie intersuite_token)
 ```
