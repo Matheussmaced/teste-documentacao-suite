@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { removeToken } from '@/lib/token';
 import { Logo } from '@/components/ui/Logo';
 
 const navItems = [
@@ -14,20 +13,17 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  function handleLogout() {
-    removeToken();
+  function handleExitApp() {
     document.cookie = 'app_session=; path=/; max-age=0';
     router.push('/login');
   }
 
   return (
     <aside className="w-56 shrink-0 flex flex-col bg-zinc-900 border-r border-zinc-800 min-h-screen">
-      {/* Logo */}
       <div className="px-4 py-5 border-b border-zinc-800">
         <Logo size="sm" subtitle="v2 · Console" />
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 px-2 py-4 space-y-0.5">
         {navItems.map(({ label, href, icon: Icon }) => {
           const active = pathname === href;
@@ -48,10 +44,9 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Logout */}
       <div className="px-2 py-4 border-t border-zinc-800">
         <button
-          onClick={handleLogout}
+          onClick={handleExitApp}
           className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
         >
           <LogoutIcon className="w-4 h-4 shrink-0" />

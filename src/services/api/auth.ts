@@ -27,6 +27,18 @@ export async function loginWithCredentials(
   }
 }
 
+export async function logout(): Promise<void> {
+  try {
+    await api.delete('/auth/logout');
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 400) console.warn('[auth] Falha ao invalidar token no servidor.');
+      // 401 = já expirado — segue normalmente
+    }
+  }
+}
+
 export async function getMe(): Promise<User> {
   try {
     const { data } = await api.get<UserMeResponse>('/auth/me');

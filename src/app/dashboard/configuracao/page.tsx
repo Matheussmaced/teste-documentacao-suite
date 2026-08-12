@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { loginWithCredentials, loginWithApiKey, getMe } from '@/services/api/auth';
-import { saveToken, getToken } from '@/lib/token';
+import { loginWithCredentials, loginWithApiKey, getMe, logout } from '@/services/api/auth';
+import { saveToken, getToken, removeToken } from '@/lib/token';
 import type { User } from '@/types/auth';
 import { Field } from '@/components/ui/Field';
 import { SubmitButton } from '@/components/ui/SubmitButton';
@@ -32,6 +32,13 @@ export default function ConfiguracaoPage() {
     } catch {
       setUser(null);
     }
+  }
+
+  async function handleDisconnect() {
+    await logout();
+    removeToken();
+    setUser(null);
+    setSuccess(false);
   }
 
   function reset() {
@@ -97,7 +104,7 @@ export default function ConfiguracaoPage() {
       {/* Usuário autenticado */}
       {user && (
         <Card className="p-4 mb-6">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-semibold text-zinc-300 shrink-0">
                 {user.name.charAt(0).toUpperCase()}{user.last_name.charAt(0).toUpperCase()}
@@ -119,6 +126,15 @@ export default function ConfiguracaoPage() {
                 {user.group.name}
               </span>
             </div>
+          </div>
+
+          <div className="pt-3 border-t border-zinc-800">
+            <button
+              onClick={handleDisconnect}
+              className="text-xs text-red-400 hover:text-red-300 transition-colors"
+            >
+              Desconectar do InterSuite
+            </button>
           </div>
         </Card>
       )}
