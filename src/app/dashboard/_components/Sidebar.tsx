@@ -93,10 +93,10 @@ export default function Sidebar() {
   const l2Children = activeL2 && 'children' in activeL2 ? activeL2.children : null;
 
   return (
-    <div ref={ref} className="flex shrink-0 min-h-screen">
+    <div ref={ref} className="relative shrink-0 w-56">
 
       {/* ── Sidebar principal ── */}
-      <aside className="w-56 flex flex-col bg-zinc-900 border-r border-zinc-800">
+      <aside className="w-56 flex flex-col bg-zinc-900 border-r border-zinc-800 min-h-screen">
         <div className="px-4 py-5 border-b border-zinc-800">
           <Logo size="sm" subtitle="v2 · Console" />
         </div>
@@ -156,7 +156,7 @@ export default function Sidebar() {
 
       {/* ── Flyout L1 ── */}
       {l1Children && (
-        <div className="w-44 flex flex-col bg-[#111318] border-r border-zinc-800 shadow-2xl">
+        <div className="absolute left-56 top-0 min-h-screen w-44 flex flex-col bg-[#111318] border-r border-zinc-800 shadow-2xl z-50">
           <div className="px-3 pt-5 pb-3 border-b border-zinc-800">
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">
               {activeL1!.label}
@@ -194,7 +194,7 @@ export default function Sidebar() {
 
       {/* ── Flyout L2 ── */}
       {l2Children && (
-        <div className="w-44 flex flex-col bg-[#0d1014] border-r border-zinc-800 shadow-2xl">
+        <div className="absolute left-[400px] top-0 min-h-screen w-44 flex flex-col bg-[#0d1014] border-r border-zinc-800 shadow-2xl z-50">
           <div className="px-3 pt-5 pb-3 border-b border-zinc-800">
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">
               {activeL2!.label}
