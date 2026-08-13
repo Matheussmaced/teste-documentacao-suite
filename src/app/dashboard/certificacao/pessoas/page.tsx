@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getPersons } from '@/services/api/persons';
+import { getPersons, deletePerson } from '@/services/api/persons';
 import { getToken } from '@/lib/token';
 import type { Person, Pagination } from '@/types/persons';
 import Link from 'next/link';
@@ -31,11 +31,29 @@ export default function PessoasPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hasToken, setHasToken] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setHasToken(!!getToken());
   }, []);
+
+  async function handleDelete(uuid: string) {
+    setDeleteLoading(uuid);
+    setDeleteError('');
+    try {
+      await deletePerson(uuid);
+      setPersons((prev) => prev.filter((p) => p.uuid !== uuid));
+      setConfirmDelete(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Erro ao remover pessoa.');
+      setConfirmDelete(null);
+    } finally {
+      setDeleteLoading(null);
+    }
+  }
 
   const fetchPersons = useCallback(async (q: string, p: number) => {
     setLoading(true);
@@ -115,9 +133,8 @@ export default function PessoasPage() {
         </div>
       </div>
 
-      {error && (
-        <Alert variant="error" className="mb-4">{error}</Alert>
-      )}
+      {error && <Alert variant="error" className="mb-4">{error}</Alert>}
+      {deleteError && <Alert variant="error" className="mb-4">{deleteError}</Alert>}
 
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
@@ -169,18 +186,40 @@ export default function PessoasPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
-                    <button
-                      title="Editar"
-                      className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
-                    >
-                      <EditIcon className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      title="Excluir"
-                      className="p-1.5 rounded text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                    >
-                      <TrashIcon className="w-3.5 h-3.5" />
-                    </button>
+                    {confirmDelete === p.uuid ? (
+                      <>
+                        <button
+                          onClick={() => handleDelete(p.uuid)}
+                          disabled={deleteLoading === p.uuid}
+                          className="px-2 py-1 rounded text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-400/10 disabled:opacity-50 transition-colors"
+                        >
+                          {deleteLoading === p.uuid ? 'Removendo...' : 'Confirmar'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(null)}
+                          disabled={deleteLoading === p.uuid}
+                          className="px-2 py-1 rounded text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          title="Editar"
+                          className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+                        >
+                          <EditIcon className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          title="Excluir"
+                          onClick={() => { setConfirmDelete(p.uuid); setDeleteError(''); }}
+                          className="p-1.5 rounded text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

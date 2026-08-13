@@ -26,6 +26,22 @@ export async function getPersons(params?: GetPersonsParams): Promise<GetPersonsR
   }
 }
 
+export async function deletePerson(uuid: string): Promise<void> {
+  try {
+    await api.delete(`/persons/${uuid}`);
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      const body = err.response?.data;
+      if (status === 400) throw new Error(body?.message ?? 'Falha ao deletar o cliente.');
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 404) throw new Error('Cliente não encontrado.');
+      if (status === 500) throw new Error(body?.error ?? body?.message ?? 'Erro interno do servidor.');
+    }
+    throw new Error('Erro ao remover pessoa.');
+  }
+}
+
 export async function createPerson(payload: CreatePersonPayload): Promise<Person> {
   try {
     const { data } = await api.post<PersonResponse>('/persons', payload);
