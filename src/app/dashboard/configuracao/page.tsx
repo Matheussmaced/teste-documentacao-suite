@@ -30,6 +30,7 @@ export default function ConfiguracaoPage() {
       const data = await getMe();
       setUser(data);
     } catch {
+      removeToken();
       setUser(null);
     }
   }

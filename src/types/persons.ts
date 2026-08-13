@@ -1,3 +1,18 @@
+export interface CreatePersonPayload {
+  holders_document: string;
+  holders_name: string;
+  email: string;
+  birth_date: string;
+  cellphone: string;
+  phone?: string;
+  address_zipcode: string;
+  address_number: string;
+  address_compl?: string;
+  document?: string;
+  name?: string;
+  fantasy_name?: string;
+}
+
 export interface Person {
   uuid: string;
   fathers_uuid: string;
@@ -9,9 +24,9 @@ export interface Person {
   birth_date: string;
   phone: string;
   cellphone: string;
-  document: string;
-  name: string;
-  fantasy_name: string;
+  document?: string;
+  name?: string;
+  fantasy_name?: string;
   address_zipcode: string;
   address_city: string;
   address_uf: string;
@@ -19,9 +34,15 @@ export interface Person {
   address_neighb: string;
   address: string;
   address_number: string;
-  address_compl: string;
+  address_compl?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface PersonResponse {
+  success: boolean;
+  message: string;
+  data: Person;
 }
 
 export interface Pagination {
