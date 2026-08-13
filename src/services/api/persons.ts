@@ -26,6 +26,21 @@ export async function getPersons(params?: GetPersonsParams): Promise<GetPersonsR
   }
 }
 
+export async function getPerson(uuid: string): Promise<Person> {
+  try {
+    const { data } = await api.get<PersonResponse>(`/persons/${uuid}`);
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 404) throw new Error('Cliente não encontrado.');
+      if (status === 500) throw new Error('Erro interno do servidor.');
+    }
+    throw new Error('Erro ao buscar pessoa.');
+  }
+}
+
 export async function deletePerson(uuid: string): Promise<void> {
   try {
     await api.delete(`/persons/${uuid}`);
