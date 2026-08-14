@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getSale, updateSaleClient, confirmSale } from '@/services/api/sales';
 import { getPersons } from '@/services/api/persons';
 import { getPaymentMethods } from '@/services/api/payments';
@@ -61,6 +62,51 @@ function ArrayCard({ title, items }: { title: string; items: Record<string, unkn
             {JSON.stringify(item, null, 2)}
           </div>
         ))}
+      </div>
+    </Card>
+  );
+}
+
+function CobrancasCard({ charges }: { charges: Record<string, unknown>[] }) {
+  if (charges.length === 0) return null;
+  return (
+    <Card className="overflow-hidden mb-4">
+      <div className="px-6 py-4 border-b border-zinc-800">
+        <p className="text-xs text-zinc-500">Cobranças <span className="ml-1 text-zinc-600">({charges.length})</span></p>
+      </div>
+      <div className="divide-y divide-zinc-800">
+        {charges.map((c, idx) => {
+          const uuid = typeof c.uuid === 'string' ? c.uuid : null;
+          const description = typeof c.description === 'string' ? c.description : null;
+          const amount = typeof c.amount === 'number' ? c.amount : null;
+          const status = typeof c.status === 'string' ? c.status : null;
+          return (
+            <div key={uuid ?? idx} className="flex items-center justify-between px-6 py-3 hover:bg-zinc-800/30 transition-colors">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-zinc-300 truncate">{description ?? uuid ?? `Cobrança ${idx + 1}`}</p>
+                <div className="flex items-center gap-3 mt-0.5">
+                  {amount !== null && (
+                    <span className="text-[11px] text-zinc-500">
+                      {Number(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
+                  )}
+                  {status && (
+                    <span className="text-[11px] text-zinc-600">{status}</span>
+                  )}
+                </div>
+              </div>
+              {uuid && (
+                <Link
+                  href={`/dashboard/vendas/cobrancas/${uuid}`}
+                  className="ml-4 shrink-0 text-zinc-600 hover:text-zinc-300 transition-colors"
+                  title="Ver cobrança"
+                >
+                  <EyeIcon className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
@@ -312,6 +358,14 @@ function ChargeCard({ charge }: { charge: Charge }) {
       {charge.response_payload && Object.keys(charge.response_payload).length > 0 && (
         <GatewayPayload payload={charge.response_payload} />
       )}
+      <div className="pt-2">
+        <Link
+          href={`/dashboard/vendas/cobrancas/${charge.uuid}`}
+          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+        >
+          Ver detalhe da cobrança →
+        </Link>
+      </div>
     </div>
   );
 }
@@ -423,7 +477,7 @@ export default function DetalheVendaPage() {
             </Card>
           )}
 
-          <ArrayCard title="Cobranças" items={sale.charges} />
+          <CobrancasCard charges={sale.charges} />
           <ArrayCard title="Agendamentos" items={sale.appointments} />
           <ArrayCard title="Renovações" items={sale.certificate_renewals} />
           <ArrayCard title="Emissões Soluti" items={sale.soluti_emit_data} />
@@ -437,6 +491,15 @@ function BackIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+  );
+}
+
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   );
 }

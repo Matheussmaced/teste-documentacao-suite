@@ -74,6 +74,7 @@ export interface Charge {
   installments: number;
   amount: number;
   due_date: string | null;
+  payment_date: string | null;
   status: string;
   description: string | null;
   request_payload: Record<string, unknown> | null;
@@ -81,6 +82,12 @@ export interface Charge {
   payment_method: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChargeResponse {
+  success: boolean;
+  message: string;
+  data: Charge;
 }
 
 export interface ConfirmSaleResult {
