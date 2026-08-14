@@ -40,7 +40,15 @@ const navConfig: NavRoot[] = [
         label: 'Produtos',
         href: '/dashboard/certificacao/produtos',
       },
-      // Adicionar: Vendas, Aprovações, etc.
+      {
+        key: 'vendas',
+        label: 'Vendas',
+        children: [
+          { key: 'vendas-nova', label: 'Nova Venda', href: '/dashboard/vendas/nova' },
+          { key: 'metodos-pagamento', label: 'Métodos de Pagamento', href: '/dashboard/vendas/metodos-pagamento' },
+        ],
+      },
+      // Adicionar: Aprovações, etc.
     ],
   },
   {
