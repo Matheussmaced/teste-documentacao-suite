@@ -15,6 +15,15 @@ function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
 export default function ProdutosPage() {
   const router = useRouter();
   const [products, setProducts] = useState<UserProduct[]>([]);
@@ -87,19 +96,20 @@ export default function ProdutosPage() {
               <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Custo</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Preço de Venda</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Editar Preço</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-zinc-500 text-sm">
+                <td colSpan={7} className="px-4 py-10 text-center text-zinc-500 text-sm">
                   Carregando...
                 </td>
               </tr>
             )}
             {!loading && products.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-zinc-500 text-sm">
+                <td colSpan={7} className="px-4 py-10 text-center text-zinc-500 text-sm">
                   Nenhum produto habilitado para esta unidade.
                 </td>
               </tr>
@@ -130,6 +140,17 @@ export default function ProdutosPage() {
                   ) : (
                     <span className="text-[11px] text-zinc-600">Não</span>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end">
+                    <button
+                      title="Ver detalhe"
+                      onClick={() => router.push(`/dashboard/certificacao/produtos/${p.uuid}`)}
+                      className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+                    >
+                      <EyeIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

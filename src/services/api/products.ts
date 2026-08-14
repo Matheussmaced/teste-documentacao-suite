@@ -23,3 +23,17 @@ export async function getUserProducts(params?: GetUserProductsParams): Promise<U
     throw new Error('Erro ao listar produtos.');
   }
 }
+
+export async function getUserProduct(uuid: string): Promise<UserProduct> {
+  try {
+    const { data } = await api.get<{ success: boolean; message: string; data: UserProduct }>(`/certificate/user-products/${uuid}`);
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 404) throw new Error('Produto não encontrado.');
+    }
+    throw new Error('Erro ao buscar produto.');
+  }
+}
