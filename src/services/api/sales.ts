@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { api } from './api';
-import type { CreateSalePayload, Sale, SaleResponse, SalesListResponse } from '@/types/sales';
+import type { CreateSalePayload, Sale, SaleDetail, SaleResponse, SaleDetailResponse, SalesListResponse } from '@/types/sales';
 
 export interface SalesListResult {
   data: Sale[];
@@ -18,6 +18,22 @@ export async function getSales(params?: { page?: number }): Promise<SalesListRes
       if (status === 500) throw new Error('Erro interno do servidor.');
     }
     throw new Error('Erro ao listar vendas.');
+  }
+}
+
+export async function getSale(uuid: string): Promise<SaleDetail> {
+  try {
+    const { data } = await api.get<SaleDetailResponse>(`/certificate/sales/${uuid}`);
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 403) throw new Error('Acesso negado — venda pertence a outro vendedor.');
+      if (status === 404) throw new Error('Venda não encontrada.');
+      if (status === 500) throw new Error('Erro interno do servidor.');
+    }
+    throw new Error('Erro ao buscar venda.');
   }
 }
 

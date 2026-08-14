@@ -51,6 +51,19 @@ export interface SaleResponse {
   data: Sale;
 }
 
+export interface SaleDetail extends Sale {
+  charges: Record<string, unknown>[];
+  appointments: Record<string, unknown>[];
+  certificate_renewals: Record<string, unknown>[];
+  soluti_emit_data: Record<string, unknown>[];
+}
+
+export interface SaleDetailResponse {
+  success: boolean;
+  message: string;
+  data: SaleDetail;
+}
+
 export interface SalesListResponse {
   success: boolean;
   message: string;
