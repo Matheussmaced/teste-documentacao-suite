@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSale } from '@/services/api/sales';
-import { discoverBirdId } from '@/services/api/soluti';
+import { discoverBirdId, scheduleStart, validateWebServiceEmit } from '@/services/api/soluti';
 import type { SaleDetail } from '@/types/sales';
-import type { BirdIdSlot } from '@/types/soluti';
+import type { BirdIdSlot, ScheduleStartData, WebServiceEmissao } from '@/types/soluti';
 import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
 import { EndpointBadge } from '@/components/ui/EndpointBadge';
@@ -35,15 +35,74 @@ export default function EmissaoPage() {
   const [slots, setSlots] = useState<BirdIdSlot[] | null>(null);
   const [path, setPath] = useState<Path>(null);
 
+  // ── Schedule Start (Caminho A) ───────────────────────────────────
+  const [aceite, setAceite] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState('');
+  const [startData, setStartData] = useState<ScheduleStartData | null>(null);
+
+  // ── Validate (Caminho B) ─────────────────────────────────────────
+  const [solicitationCode, setSolicitationCode] = useState('');
+  const [emitPassword, setEmitPassword] = useState('');
+  const [validating, setValidating] = useState(false);
+  const [validateError, setValidateError] = useState('');
+  const [emissao, setEmissao] = useState<WebServiceEmissao | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     getSale(uuid)
       .then((s) => {
         setSale(s);
         if (s.client?.holders_document) setDocument(s.client.holders_document);
+        if (s.external_protocol) setSolicitationCode(s.external_protocol);
       })
       .catch((err) => setSaleError(err instanceof Error ? err.message : 'Erro ao carregar venda.'))
       .finally(() => setSaleLoading(false));
   }, [uuid]);
+
+  function startCooldown() {
+    setCooldown(30);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((c) => {
+        if (c <= 1) { clearInterval(cooldownRef.current!); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  }
+
+  async function handleStart(e: React.FormEvent) {
+    e.preventDefault();
+    if (!solicitationCode.trim() || !aceite) return;
+    setStarting(true);
+    setStartError('');
+    setStartData(null);
+    try {
+      const result = await scheduleStart(solicitationCode.trim(), aceite);
+      setStartData(result);
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : 'Erro ao iniciar agendamento.');
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  const handleValidate = useCallback(async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!solicitationCode.trim() || !emitPassword.trim()) return;
+    setValidating(true);
+    setValidateError('');
+    try {
+      const result = await validateWebServiceEmit(solicitationCode.trim(), emitPassword.trim());
+      setEmissao(result);
+      if (result.status !== 2 && result.status !== 8 && result.status !== 9) startCooldown();
+    } catch (err) {
+      setValidateError(err instanceof Error ? err.message : 'Erro ao validar emissão.');
+    } finally {
+      setValidating(false);
+    }
+  }, [solicitationCode, emitPassword]);
 
   async function handleDiscovery(e: React.FormEvent) {
     e.preventDefault();
@@ -157,12 +216,165 @@ export default function EmissaoPage() {
         )}
       </Card>
 
-      {/* Próximos passos — serão adicionados conforme endpoints chegarem */}
-      {path !== null && (
-        <div className="text-center py-4">
-          <p className="text-xs text-zinc-600">Próximos passos em implementação...</p>
+      {/* ── Step 2: Caminho B — Validate ── */}
+      {path === 'webservice' && (
+        <Card className="p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs text-zinc-500 mb-0.5">Passo 2 — Caminho B</p>
+              <p className="text-sm text-zinc-200 font-medium">Validar dados da emissão</p>
+            </div>
+            <EndpointBadge method="POST" path="/soluti/webservice/emit/validate" visibility="Autenticado" />
+          </div>
+
+          <p className="text-[11px] text-zinc-600 mb-4">
+            Use antes de chamar a emissão e para monitorar o status. Aguarde 30s entre cada consulta.
+          </p>
+
+          <form onSubmit={handleValidate} className="space-y-3">
+            <div>
+              <label className="text-[11px] text-zinc-500 block mb-1.5">Código da solicitação (external_protocol)</label>
+              <input
+                type="text"
+                value={solicitationCode}
+                onChange={(e) => setSolicitationCode(e.target.value)}
+                placeholder="Protocolo externo da venda"
+                className="w-full rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 placeholder:text-zinc-600 px-3.5 py-2.5 transition-colors font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-zinc-500 block mb-1.5">Senha de emissão</label>
+              <input
+                type="password"
+                value={emitPassword}
+                onChange={(e) => setEmitPassword(e.target.value)}
+                placeholder="Senha de emissão do certificado"
+                className="w-full rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 placeholder:text-zinc-600 px-3.5 py-2.5 transition-colors"
+              />
+            </div>
+
+            {validateError && <p className="text-xs text-red-400">{validateError}</p>}
+
+            <button
+              type="submit"
+              disabled={validating || !solicitationCode.trim() || !emitPassword.trim() || cooldown > 0}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              {validating ? 'Validando...' : cooldown > 0 ? `Aguarde ${cooldown}s...` : emissao ? 'Verificar novamente' : 'Validar'}
+            </button>
+          </form>
+
+          {emissao && (
+            <div className="mt-4 pt-4 border-t border-zinc-800 space-y-3">
+              <EmissaoStatus emissao={emissao} />
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* ── Step 2: Caminho A — Schedule Start ── */}
+      {path === 'birdid' && (
+        <Card className="p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs text-zinc-500 mb-0.5">Passo 2 — Caminho A</p>
+              <p className="text-sm text-zinc-200 font-medium">Iniciar agendamento</p>
+            </div>
+            <EndpointBadge method="POST" path="/soluti/schedule/start" visibility="Autenticado" />
+          </div>
+
+          <p className="text-[11px] text-zinc-600 mb-4">
+            Importa o pedido na Soluti e gera o código de aceite. Os dados retornados são necessários no próximo passo.
+          </p>
+
+          <form onSubmit={handleStart} className="space-y-3">
+            <div>
+              <label className="text-[11px] text-zinc-500 block mb-1.5">Protocolo externo (pedido)</label>
+              <input
+                type="text"
+                value={solicitationCode}
+                onChange={(e) => { setSolicitationCode(e.target.value); setStartData(null); }}
+                maxLength={50}
+                placeholder="Protocolo externo da venda"
+                className="w-full rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 placeholder:text-zinc-600 px-3.5 py-2.5 transition-colors font-mono"
+              />
+            </div>
+
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aceite}
+                onChange={(e) => setAceite(e.target.checked)}
+                className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-blue-500"
+              />
+              <span className="text-xs text-zinc-400">Aceito a política de privacidade vinculada à videoconferência</span>
+            </label>
+
+            {startError && <p className="text-xs text-red-400">{startError}</p>}
+
+            <button
+              type="submit"
+              disabled={starting || !solicitationCode.trim() || !aceite}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              {starting ? 'Iniciando...' : 'Iniciar agendamento'}
+            </button>
+          </form>
+
+          {startData && (
+            <div className="mt-4 pt-4 border-t border-zinc-800 space-y-2">
+              <p className="text-[11px] text-zinc-500 font-medium">Agendamento iniciado</p>
+              <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
+                <p className="text-[11px] text-zinc-500 mb-0.5">Código de aceite</p>
+                <p className="text-xs text-zinc-200 font-mono break-all">{startData.codigo_aceite}</p>
+              </div>
+              {startData.produtos.length > 0 && (
+                <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
+                  <p className="text-[11px] text-zinc-500 mb-1">Produtos</p>
+                  <pre className="text-[11px] font-mono text-zinc-400 break-all whitespace-pre-wrap">
+                    {JSON.stringify(startData.produtos, null, 2)}
+                  </pre>
+                </div>
+              )}
+              <p className="text-[11px] text-zinc-500">Guarde o código de aceite — será necessário no próximo passo.</p>
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+const STATUS_MAP: Record<number, { label: string; color: string; guidance: string }> = {
+  0: { label: 'Aguardando CSR', color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', guidance: 'Chame a emissão (POST /soluti/webservice/emit/issue).' },
+  1: { label: 'Par de chaves gerado', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', guidance: 'Chame a emissão (POST /soluti/webservice/emit/issue).' },
+  2: { label: 'Certificado emitido', color: 'bg-green-500/10 text-green-400 border-green-500/20', guidance: 'Certificado pronto. Chame o recovery para obter o link de download.' },
+  8: { label: 'Erro ao enviar', color: 'bg-red-500/10 text-red-400 border-red-500/20', guidance: 'Erro ao enviar solicitação de emissão. Reinicie o processo.' },
+  9: { label: 'Erro ao emitir', color: 'bg-red-500/10 text-red-400 border-red-500/20', guidance: 'Erro ao emitir certificado. O cliente deve contatar a AR.' },
+};
+
+function EmissaoStatus({ emissao }: { emissao: WebServiceEmissao }) {
+  const info = STATUS_MAP[emissao.status] ?? {
+    label: `Status ${emissao.status}`,
+    color: 'bg-zinc-700 text-zinc-400 border-zinc-600',
+    guidance: 'Status desconhecido.',
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded border ${info.color}`}>
+          {info.label}
+        </span>
+        <span className="text-[11px] text-zinc-600">status {emissao.status}</span>
+      </div>
+      {(emissao.cn || emissao.cpf || emissao.cnpj) && (
+        <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5 space-y-1">
+          {emissao.cn && <p className="text-xs text-zinc-300"><span className="text-zinc-500">CN: </span>{emissao.cn}</p>}
+          {emissao.cpf && <p className="text-xs text-zinc-400"><span className="text-zinc-500">CPF: </span>{emissao.cpf}</p>}
+          {emissao.cnpj && <p className="text-xs text-zinc-400"><span className="text-zinc-500">CNPJ: </span>{emissao.cnpj}</p>}
         </div>
       )}
+      <p className="text-[11px] text-zinc-500">{info.guidance}</p>
     </div>
   );
 }

@@ -372,17 +372,30 @@ function ChargeCard({ charge }: { charge: Charge }) {
 
 function GerarProtocoloButton({ saleUuid, onSuccess }: { saleUuid: string; onSuccess: (sale: SaleDetail) => void }) {
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
   async function handle() {
+    if (loading) return;
     setLoading(true);
     setError('');
+    setStatus('Solicitando protocolo...');
     try {
       await requestProtocol(saleUuid);
-      const updated = await getSale(saleUuid);
-      onSuccess(updated);
+      setStatus('Aguardando geração do protocolo...');
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const updated = await getSale(saleUuid);
+        if (updated.external_protocol) {
+          onSuccess(updated);
+          return;
+        }
+      }
+      setStatus('');
+      setError('Protocolo solicitado, mas ainda não gerado. Recarregue a venda em alguns instantes.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar protocolo.');
+      setStatus('');
     } finally {
       setLoading(false);
     }
@@ -396,11 +409,12 @@ function GerarProtocoloButton({ saleUuid, onSuccess }: { saleUuid: string; onSuc
       <p className="text-[11px] text-zinc-600 mb-2">
         O protocolo pode ser gerado automaticamente algum tempo após o pagamento. Caso ainda não apareça, acione manualmente.
       </p>
+      {status && <p className="text-[11px] text-zinc-500 mb-2">{status}</p>}
       {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
       <button
         onClick={handle}
         disabled={loading}
-        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed pointer-events-auto transition-colors"
       >
         {loading ? 'Gerando protocolo...' : 'Gerar protocolo externo'}
       </button>
