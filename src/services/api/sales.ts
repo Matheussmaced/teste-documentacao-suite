@@ -56,6 +56,42 @@ export async function getSale(uuid: string): Promise<SaleDetail> {
   }
 }
 
+export async function updateSaleClient(uuid: string, clientUuid: string): Promise<Sale> {
+  try {
+    const { data } = await api.patch<SaleResponse>(`/certificate/sales/${uuid}`, { client: clientUuid });
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      const body = err.response?.data;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 404) throw new Error('Venda não encontrada.');
+      if (status === 422) throw new Error(body?.message ?? 'Erro de validação dos campos enviados.');
+      if (status === 500) throw new Error(body?.message ?? 'Erro interno do servidor.');
+    }
+    throw new Error('Erro ao atualizar cliente da venda.');
+  }
+}
+
+export async function confirmSale(uuid: string, paymentMethodInstallment: string): Promise<SaleDetail> {
+  try {
+    const { data } = await api.post<SaleDetailResponse>(`/certificate/sales/${uuid}/confirm`, {
+      payment_method_installment: paymentMethodInstallment,
+    });
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      const body = err.response?.data;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 404) throw new Error('Venda não encontrada.');
+      if (status === 422) throw new Error(body?.message ?? 'Erro de validação dos campos enviados.');
+      if (status === 500) throw new Error(body?.message ?? 'Erro interno do servidor.');
+    }
+    throw new Error('Erro ao confirmar venda.');
+  }
+}
+
 export async function createSale(payload: CreateSalePayload): Promise<Sale> {
   try {
     const { data } = await api.post<SaleResponse>('/certificate/sales', payload);

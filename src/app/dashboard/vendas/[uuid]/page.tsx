@@ -1,9 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getSale } from '@/services/api/sales';
+import { getSale, updateSaleClient, confirmSale } from '@/services/api/sales';
+import { getPersons } from '@/services/api/persons';
+import { getPaymentMethods } from '@/services/api/payments';
+import type { PaymentMethod } from '@/types/payments';
 import type { SaleDetail } from '@/types/sales';
+import type { Person, Pagination } from '@/types/persons';
 import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
 import { EndpointBadge } from '@/components/ui/EndpointBadge';
@@ -32,11 +36,17 @@ function formatDate(iso?: string | null) {
 }
 
 function saleStatus(sale: SaleDetail) {
-  if (sale.downloaded_at) return { label: 'Concluído',           color: 'bg-green-500/10 text-green-400 border-green-500/20' };
-  if (sale.issued_at)     return { label: 'Emitido',             color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
-  if (sale.paid_at)       return { label: 'Pago',                color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' };
-  if (sale.confirmed_at)  return { label: 'Confirmado',          color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' };
-  return                         { label: 'Pendente',            color: 'bg-zinc-700 text-zinc-400 border-zinc-600' };
+  if (sale.downloaded_at) return { label: 'Concluído',  color: 'bg-green-500/10 text-green-400 border-green-500/20' };
+  if (sale.issued_at)     return { label: 'Emitido',    color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+  if (sale.paid_at)       return { label: 'Pago',       color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' };
+  if (sale.confirmed_at)  return { label: 'Confirmado', color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' };
+  return                         { label: 'Pendente',   color: 'bg-zinc-700 text-zinc-400 border-zinc-600' };
+}
+
+function formatCPF(v: string) {
+  const d = v.replace(/\D/g, '');
+  if (d.length !== 11) return v;
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 }
 
 function ArrayCard({ title, items }: { title: string; items: Record<string, unknown>[] }) {
@@ -46,12 +56,219 @@ function ArrayCard({ title, items }: { title: string; items: Record<string, unkn
       <p className="text-xs text-zinc-500 mb-3">{title} <span className="ml-1 text-zinc-600">({items.length})</span></p>
       <div className="space-y-3">
         {items.map((item, idx) => (
-          <div key={idx} className="bg-zinc-800/50 rounded-lg p-3 text-xs font-mono text-zinc-400 break-all">
+          <div key={idx} className="bg-zinc-800/50 rounded-lg p-3 text-xs font-mono text-zinc-400 break-all whitespace-pre-wrap">
             {JSON.stringify(item, null, 2)}
           </div>
         ))}
       </div>
     </Card>
+  );
+}
+
+function TrocarClientePanel({ saleUuid, onSuccess }: { saleUuid: string; onSuccess: (sale: SaleDetail) => void }) {
+  const [open, setOpen] = useState(false);
+  const [persons, setPersons] = useState<Person[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [personPage, setPersonPage] = useState(1);
+  const [personsLoading, setPersonsLoading] = useState(false);
+  const [selectedUuid, setSelectedUuid] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchPersons = useCallback(async (p: number) => {
+    setPersonsLoading(true);
+    try {
+      const result = await getPersons({ page: p });
+      setPersons(result.data);
+      setPagination(result.pagination);
+    } catch {
+      setPersons([]);
+    } finally {
+      setPersonsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) fetchPersons(personPage);
+  }, [open, personPage, fetchPersons]);
+
+  async function handleSave() {
+    if (!selectedUuid) return;
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await updateSaleClient(saleUuid, selectedUuid) as unknown as SaleDetail;
+      onSuccess({ ...updated, charges: [], appointments: [], certificate_renewals: [], soluti_emit_data: [] });
+      setOpen(false);
+      setSelectedUuid('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao trocar cliente.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+      >
+        Trocar cliente
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-zinc-800">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-zinc-400 font-medium">Selecionar novo cliente</p>
+        <EndpointBadge method="PATCH" path={`/certificate/sales/${saleUuid}`} visibility="Autenticado" />
+      </div>
+
+      <select
+        value={selectedUuid}
+        onChange={(e) => setSelectedUuid(e.target.value)}
+        disabled={personsLoading}
+        className="w-full rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 px-3 py-2.5 transition-colors disabled:opacity-50 mb-2"
+      >
+        <option value="">{personsLoading ? 'Carregando...' : 'Selecione um cliente...'}</option>
+        {persons.map((p) => (
+          <option key={p.uuid} value={p.uuid}>
+            {p.holders_name} — {formatCPF(p.holders_document)}
+          </option>
+        ))}
+      </select>
+
+      {pagination && pagination.last_page > 1 && (
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] text-zinc-600">Página {pagination.current_page} de {pagination.last_page}</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPersonPage((p) => Math.max(1, p - 1))}
+              disabled={pagination.current_page <= 1 || personsLoading}
+              className="px-2.5 py-1 rounded text-xs text-zinc-400 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              Anterior
+            </button>
+            <button type="button" onClick={() => setPersonPage((p) => Math.min(pagination.last_page, p + 1))}
+              disabled={pagination.current_page >= pagination.last_page || personsLoading}
+              className="px-2.5 py-1 rounded text-xs text-zinc-400 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={!selectedUuid || saving}
+          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          {saving ? 'Salvando...' : 'Confirmar troca'}
+        </button>
+        <button
+          onClick={() => { setOpen(false); setSelectedUuid(''); setError(''); }}
+          disabled={saving}
+          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs transition-colors"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmarVendaPanel({ saleUuid, onSuccess }: { saleUuid: string; onSuccess: (sale: SaleDetail) => void }) {
+  const [open, setOpen] = useState(false);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setMethodsLoading(true);
+    getPaymentMethods()
+      .then((res) => setMethods(res.data.filter((m) => m.active && m.installment_rules.length > 0)))
+      .catch(() => setMethods([]))
+      .finally(() => setMethodsLoading(false));
+  }, [open]);
+
+  async function handleConfirm() {
+    if (!selectedInstallment) return;
+    setConfirming(true);
+    setError('');
+    try {
+      const updated = await confirmSale(saleUuid, selectedInstallment);
+      onSuccess(updated);
+      setOpen(false);
+      setSelectedInstallment('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao confirmar venda.');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="text-xs text-green-400 hover:text-green-300 transition-colors"
+      >
+        Confirmar venda
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-zinc-800">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-zinc-400 font-medium">Selecionar método de pagamento</p>
+        <EndpointBadge method="POST" path={`/certificate/sales/${saleUuid}/confirm`} visibility="Autenticado" />
+      </div>
+
+      <select
+        value={selectedInstallment}
+        onChange={(e) => setSelectedInstallment(e.target.value)}
+        disabled={methodsLoading}
+        className="w-full rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 px-3 py-2.5 transition-colors disabled:opacity-50 mb-2"
+      >
+        <option value="">{methodsLoading ? 'Carregando...' : 'Selecione um método de pagamento...'}</option>
+        {methods.map((method) =>
+          method.installment_rules.map((rule) => (
+            <option key={rule.uuid} value={rule.uuid}>
+              {method.name} — {rule.name}
+              {rule.min_installments !== rule.max_installments
+                ? ` (${rule.min_installments}x–${rule.max_installments}x)`
+                : ` (${rule.min_installments}x)`}
+            </option>
+          ))
+        )}
+      </select>
+
+      {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleConfirm}
+          disabled={!selectedInstallment || confirming}
+          className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          {confirming ? 'Confirmando...' : 'Confirmar venda'}
+        </button>
+        <button
+          onClick={() => { setOpen(false); setSelectedInstallment(''); setError(''); }}
+          disabled={confirming}
+          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs transition-colors"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -90,7 +307,7 @@ export default function DetalheVendaPage() {
 
       {!loading && sale && (
         <>
-          {/* Cabeçalho */}
+          {/* Venda */}
           <Card className="p-6 mb-4">
             <div className="flex items-center justify-between mb-4">
               <EndpointBadge method="GET" path={`/certificate/sales/${uuid}`} visibility="Autenticado" />
@@ -100,7 +317,6 @@ export default function DetalheVendaPage() {
                 </span>
               )}
             </div>
-
             <p className="text-xs text-zinc-500 mb-2">Venda</p>
             <Row label="UUID" value={sale.uuid} />
             <Row label="Protocolo externo" value={sale.external_protocol} />
@@ -114,7 +330,15 @@ export default function DetalheVendaPage() {
 
           {/* Cliente */}
           <Card className="p-6 mb-4">
-            <p className="text-xs text-zinc-500 mb-2">Cliente</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-zinc-500">Cliente</p>
+              {!sale.confirmed_at && (
+                <div className="flex items-center gap-3">
+                  <TrocarClientePanel saleUuid={sale.uuid} onSuccess={setSale} />
+                  <ConfirmarVendaPanel saleUuid={sale.uuid} onSuccess={setSale} />
+                </div>
+              )}
+            </div>
             <Row label="Nome" value={sale.client?.holders_name} />
             <Row label="CPF" value={sale.client?.holders_document} />
             <Row label="E-mail" value={sale.client?.email} />
