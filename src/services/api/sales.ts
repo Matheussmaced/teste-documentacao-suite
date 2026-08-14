@@ -98,6 +98,21 @@ export async function confirmSale(
   }
 }
 
+export async function requestProtocol(uuid: string): Promise<void> {
+  try {
+    await api.get(`/certificate/sales/${uuid}/requestProtocol`);
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      const body = err.response?.data;
+      if (status === 400) throw new Error(body?.message ?? 'Venda ainda não paga. Protocolo externo só pode ser gerado para vendas com paid_at preenchido.');
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 404) throw new Error('Venda de certificado não encontrada.');
+    }
+    throw new Error('Erro ao gerar protocolo.');
+  }
+}
+
 export async function createSale(payload: CreateSalePayload): Promise<Sale> {
   try {
     const { data } = await api.post<SaleResponse>('/certificate/sales', payload);

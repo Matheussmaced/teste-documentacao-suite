@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getSale, updateSaleClient, confirmSale } from '@/services/api/sales';
+import { getSale, updateSaleClient, confirmSale, requestProtocol } from '@/services/api/sales';
 import { getPersons } from '@/services/api/persons';
 import { getPaymentMethods } from '@/services/api/payments';
 import type { PaymentMethod } from '@/types/payments';
@@ -370,6 +370,44 @@ function ChargeCard({ charge }: { charge: Charge }) {
   );
 }
 
+function GerarProtocoloButton({ saleUuid, onSuccess }: { saleUuid: string; onSuccess: (sale: SaleDetail) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handle() {
+    setLoading(true);
+    setError('');
+    try {
+      await requestProtocol(saleUuid);
+      const updated = await getSale(saleUuid);
+      onSuccess(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar protocolo.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="pt-3 mt-1">
+      <div className="flex items-center justify-between mb-2">
+        <EndpointBadge method="GET" path={`/certificate/sales/${saleUuid}/requestProtocol`} visibility="Autenticado" />
+      </div>
+      <p className="text-[11px] text-zinc-600 mb-2">
+        O protocolo pode ser gerado automaticamente algum tempo após o pagamento. Caso ainda não apareça, acione manualmente.
+      </p>
+      {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+      <button
+        onClick={handle}
+        disabled={loading}
+        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      >
+        {loading ? 'Gerando protocolo...' : 'Gerar protocolo externo'}
+      </button>
+    </div>
+  );
+}
+
 export default function DetalheVendaPage() {
   const params = useParams();
   const router = useRouter();
@@ -424,6 +462,9 @@ export default function DetalheVendaPage() {
             <Row label="Baixado em" value={formatDate(sale.downloaded_at)} />
             <Row label="Criado em" value={formatDate(sale.created_at)} />
             <Row label="Atualizado em" value={formatDate(sale.updated_at)} />
+            {sale.paid_at && !sale.external_protocol && (
+              <GerarProtocoloButton saleUuid={sale.uuid} onSuccess={setSale} />
+            )}
           </Card>
 
           {/* Cliente */}
