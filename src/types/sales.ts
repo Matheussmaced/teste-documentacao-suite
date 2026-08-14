@@ -10,11 +10,32 @@ export interface CreateSalePayload {
   user_product: SaleItemPayload[];
 }
 
+export interface SaleClient {
+  uuid?: string;
+  holders_name?: string;
+  holders_document?: string;
+  email?: string;
+}
+
+export interface SaleSeller {
+  uuid?: string;
+  name?: string;
+  last_name?: string;
+  email?: string;
+}
+
+export interface SaleItem {
+  uuid?: string;
+  user_product?: string | Record<string, unknown>;
+  cost?: number;
+  sale_price?: number;
+}
+
 export interface Sale {
   uuid: string;
-  seller: Record<string, unknown>;
-  client: Record<string, unknown>;
-  items: unknown[];
+  seller: SaleSeller;
+  client: SaleClient;
+  items: SaleItem[];
   external_protocol?: string | null;
   confirmed_at?: string | null;
   paid_at?: string | null;
@@ -28,4 +49,16 @@ export interface SaleResponse {
   success: boolean;
   message: string;
   data: Sale;
+}
+
+export interface SalesListResponse {
+  success: boolean;
+  message: string;
+  data: Sale[];
+  pagination: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
 }

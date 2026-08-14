@@ -1,6 +1,25 @@
 import axios from 'axios';
 import { api } from './api';
-import type { CreateSalePayload, Sale, SaleResponse } from '@/types/sales';
+import type { CreateSalePayload, Sale, SaleResponse, SalesListResponse } from '@/types/sales';
+
+export interface SalesListResult {
+  data: Sale[];
+  pagination: SalesListResponse['pagination'];
+}
+
+export async function getSales(params?: { page?: number }): Promise<SalesListResult> {
+  try {
+    const { data } = await api.get<SalesListResponse>('/certificate/sales', { params });
+    return { data: data.data, pagination: data.pagination };
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 500) throw new Error('Erro interno do servidor.');
+    }
+    throw new Error('Erro ao listar vendas.');
+  }
+}
 
 export async function createSale(payload: CreateSalePayload): Promise<Sale> {
   try {
