@@ -13,9 +13,6 @@ export function Logo({ size = 'md', subtitle }: LogoProps) {
   return (
     <div>
       <span className={`inline-flex items-center gap-2 text-white font-semibold tracking-tight ${text}`}>
-        <span className={`rounded-md bg-blue-500 flex items-center justify-center font-bold ${badge}`}>
-          IS
-        </span>
         InterSuite
       </span>
       {subtitle && (

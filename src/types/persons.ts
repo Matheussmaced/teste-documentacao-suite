@@ -1,3 +1,23 @@
+export interface UpdatePersonPayload {
+  holders_document?: string;
+  holders_name: string;
+  email: string;
+  birth_date: string;
+  cellphone: string;
+  phone?: string;
+  address_zipcode: string;
+  address: string;
+  address_number: string;
+  address_compl?: string;
+  address_neighb: string;
+  address_city: string;
+  address_uf: string;
+  address_ibge: string;
+  document?: string;
+  name?: string;
+  fantasy_name?: string;
+}
+
 export interface CreatePersonPayload {
   holders_document: string;
   holders_name: string;
@@ -6,8 +26,13 @@ export interface CreatePersonPayload {
   cellphone: string;
   phone?: string;
   address_zipcode: string;
+  address: string;
   address_number: string;
   address_compl?: string;
+  address_neighb: string;
+  address_city: string;
+  address_uf: string;
+  address_ibge: string;
   document?: string;
   name?: string;
   fantasy_name?: string;

@@ -43,6 +43,33 @@ Configuração         → /dashboard/configuracao
 
 O fluxo completo de certificação é dividido em: **Pessoas** (CRUD completo) → **Venda** → outros. Cada grupo novo de endpoints vira uma entrada no navConfig sob "Certificação".
 
+### Módulo Pessoas — implementado
+
+Rotas:
+```
+/dashboard/certificacao/pessoas          → listagem paginada com busca
+/dashboard/certificacao/pessoas/novo     → cadastro (PF / PJ)
+/dashboard/certificacao/pessoas/[uuid]   → detalhe completo
+```
+
+Arquivos:
+```
+src/types/persons.ts                     ← CreatePersonPayload, Person, PersonResponse, Pagination, PersonsListResponse
+src/services/api/persons.ts              ← getPersons, getPerson, createPerson, deletePerson
+src/app/dashboard/certificacao/pessoas/
+  page.tsx                               ← tabela com busca, paginação, ícones: olho, editar (sem lógica), lixeira com confirm inline
+  novo/page.tsx                          ← form PF/PJ, toggle, success state com UUID retornado
+  [uuid]/page.tsx                        ← 4 cards: Titular, Empresa (só PJ), Endereço, Metadados
+```
+
+Comportamentos importantes:
+- **Delete**: lixeira → confirm inline na linha → `DELETE /persons/{uuid}` → remove da lista sem refetch
+- **Erros da API de Pessoas**: a API usa 403 (não 422) para validação de campos, com `errors: { field: [msg] }`. Para 500, usa `error: string` com mensagem legível (ex: "O CEP informado é inválido.").
+- **Token inválido**: `fetchUser` em configuracao chama `removeToken()` ao receber 401, limpando cookie stale.
+
+Ainda falta implementar:
+- Editar pessoa (`PATCH /persons/{uuid}`) — botão lápis já existe na tabela, sem lógica
+
 ## Estrutura de pastas relevante
 
 ```

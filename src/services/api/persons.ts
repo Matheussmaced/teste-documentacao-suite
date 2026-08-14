@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { api } from './api';
-import type { Person, Pagination, PersonsListResponse, CreatePersonPayload, PersonResponse } from '@/types/persons';
+import type { Person, Pagination, PersonsListResponse, CreatePersonPayload, UpdatePersonPayload, PersonResponse } from '@/types/persons';
 
 interface GetPersonsParams {
   search?: string;
@@ -54,6 +54,30 @@ export async function deletePerson(uuid: string): Promise<void> {
       if (status === 500) throw new Error(body?.error ?? body?.message ?? 'Erro interno do servidor.');
     }
     throw new Error('Erro ao remover pessoa.');
+  }
+}
+
+export async function updatePerson(uuid: string, payload: UpdatePersonPayload): Promise<Person> {
+  try {
+    const { data } = await api.patch<PersonResponse>(`/persons/${uuid}`, payload);
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      const body = err.response?.data;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 404) throw new Error('Cliente não encontrado.');
+      if (status === 422 || status === 403) {
+        if (body?.errors) {
+          const firstField = Object.keys(body.errors)[0];
+          const firstMessage = body.errors[firstField]?.[0];
+          throw new Error(firstMessage ?? body?.message ?? 'Erro de validação dos campos enviados.');
+        }
+        throw new Error(body?.message ?? 'Erro de validação dos campos enviados.');
+      }
+      if (status === 500) throw new Error(body?.error ?? body?.message ?? 'Erro interno do servidor.');
+    }
+    throw new Error('Erro ao atualizar pessoa.');
   }
 }
 

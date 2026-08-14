@@ -214,6 +214,7 @@ export default function PessoasPage() {
                         </button>
                         <button
                           title="Editar"
+                          onClick={() => router.push(`/dashboard/certificacao/pessoas/${p.uuid}/editar`)}
                           className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
                         >
                           <EditIcon className="w-3.5 h-3.5" />

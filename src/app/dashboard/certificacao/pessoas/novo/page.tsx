@@ -19,8 +19,13 @@ const emptyForm = {
   cellphone: '',
   phone: '',
   address_zipcode: '',
+  address: '',
   address_number: '',
   address_compl: '',
+  address_neighb: '',
+  address_city: '',
+  address_uf: '',
+  address_ibge: '',
   document: '',
   name: '',
   fantasy_name: '',
@@ -60,7 +65,12 @@ export default function NovaPessoaPage() {
         birth_date: form.birth_date,
         cellphone: form.cellphone,
         address_zipcode: form.address_zipcode,
+        address: form.address,
         address_number: form.address_number,
+        address_neighb: form.address_neighb,
+        address_city: form.address_city,
+        address_uf: form.address_uf,
+        address_ibge: form.address_ibge,
         ...(form.phone && { phone: form.phone }),
         ...(form.address_compl && { address_compl: form.address_compl }),
         ...(type === 'pj' && {
@@ -120,54 +130,78 @@ export default function NovaPessoaPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field
-              label="holders_document" name="holders_document" type="text"
+              label="CPF do Titular" name="holders_document" type="text"
               placeholder="123.456.789-00" value={form.holders_document}
-              onChange={handleChange} required tag="string · CPF do titular" mono
+              onChange={handleChange} required
             />
             <Field
-              label="holders_name" name="holders_name" type="text"
+              label="Nome Completo" name="holders_name" type="text"
               placeholder="Maria Oliveira" value={form.holders_name}
-              onChange={handleChange} required tag="string · Obrigatório" mono
+              onChange={handleChange} required
             />
             <Field
-              label="email" name="email" type="email"
-              placeholder="operador@exemplo.com.br" value={form.email}
-              onChange={handleChange} required tag="string · Obrigatório" mono
+              label="E-mail" name="email" type="email"
+              placeholder="maria@exemplo.com.br" value={form.email}
+              onChange={handleChange} required
             />
             <Field
-              label="birth_date" name="birth_date" type="text"
+              label="Data de Nascimento" name="birth_date" type="text"
               placeholder="15-06-1990" value={form.birth_date}
-              onChange={handleChange} required tag="date · dd-mm-aaaa" mono
+              onChange={handleChange} required tag="dd-mm-aaaa"
             />
             <Field
-              label="cellphone" name="cellphone" type="text"
+              label="Celular" name="cellphone" type="text"
               placeholder="(85) 99999-8888" value={form.cellphone}
-              onChange={handleChange} required tag="string · máx. 15 chars" mono
+              onChange={handleChange} required
             />
             <Field
-              label="phone" name="phone" type="text"
+              label="Telefone" name="phone" type="text"
               placeholder="(85) 3333-4444" value={form.phone}
-              onChange={handleChange} tag="string · Opcional" mono
+              onChange={handleChange} tag="Opcional"
             />
 
             <div className="pt-2 border-t border-zinc-800">
               <p className="text-xs text-zinc-500 mb-4">Endereço</p>
               <div className="space-y-4">
                 <Field
-                  label="address_zipcode" name="address_zipcode" type="text"
-                  placeholder="63180000" value={form.address_zipcode}
-                  onChange={handleChange} required tag="string · 8 dígitos sem hífen" mono
-                  hint="Cidade, UF e bairro são preenchidos automaticamente pela API."
+                  label="CEP" name="address_zipcode" type="text"
+                  placeholder="63180-000" value={form.address_zipcode}
+                  onChange={handleChange} required
                 />
                 <Field
-                  label="address_number" name="address_number" type="text"
+                  label="Rua / Avenida" name="address" type="text"
+                  placeholder="Rua Padre Cícero" value={form.address}
+                  onChange={handleChange} required
+                />
+                <Field
+                  label="Número" name="address_number" type="text"
                   placeholder="1234" value={form.address_number}
-                  onChange={handleChange} required tag="string · Obrigatório" mono
+                  onChange={handleChange} required
                 />
                 <Field
-                  label="address_compl" name="address_compl" type="text"
+                  label="Complemento" name="address_compl" type="text"
                   placeholder="Sala 2" value={form.address_compl}
-                  onChange={handleChange} tag="string · Opcional" mono
+                  onChange={handleChange} tag="Opcional"
+                />
+                <Field
+                  label="Bairro" name="address_neighb" type="text"
+                  placeholder="Centro" value={form.address_neighb}
+                  onChange={handleChange} required
+                />
+                <Field
+                  label="Cidade" name="address_city" type="text"
+                  placeholder="Juazeiro do Norte" value={form.address_city}
+                  onChange={handleChange} required
+                />
+                <Field
+                  label="Estado (UF)" name="address_uf" type="text"
+                  placeholder="CE" value={form.address_uf}
+                  onChange={handleChange} required
+                />
+                <Field
+                  label="Código IBGE" name="address_ibge" type="text"
+                  placeholder="2307304" value={form.address_ibge}
+                  onChange={handleChange} required
                 />
               </div>
             </div>
@@ -177,19 +211,19 @@ export default function NovaPessoaPage() {
                 <p className="text-xs text-zinc-500 mb-4">Dados da Empresa</p>
                 <div className="space-y-4">
                   <Field
-                    label="document" name="document" type="text"
+                    label="CNPJ" name="document" type="text"
                     placeholder="12.345.678/0001-90" value={form.document}
-                    onChange={handleChange} required tag="string · CNPJ validado" mono
+                    onChange={handleChange} required
                   />
                   <Field
-                    label="name" name="name" type="text"
+                    label="Razão Social" name="name" type="text"
                     placeholder="Razão Social Ltda" value={form.name}
-                    onChange={handleChange} required tag="string · Obrigatório com CNPJ" mono
+                    onChange={handleChange} required
                   />
                   <Field
-                    label="fantasy_name" name="fantasy_name" type="text"
+                    label="Nome Fantasia" name="fantasy_name" type="text"
                     placeholder="ABC Comércio" value={form.fantasy_name}
-                    onChange={handleChange} tag="string · Opcional" mono
+                    onChange={handleChange} tag="Opcional"
                   />
                 </div>
               </div>

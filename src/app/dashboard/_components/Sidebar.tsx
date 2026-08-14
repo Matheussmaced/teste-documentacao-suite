@@ -11,9 +11,9 @@ import { Logo } from '@/components/ui/Logo';
 // ─────────────────────────────────────────────────────────────────
 
 type Icon = (props: { className?: string }) => React.ReactNode;
-type NavLeaf  = { key: string; label: string; href: string };
+type NavLeaf = { key: string; label: string; href: string };
 type NavGroup = { key: string; label: string; children: Array<NavLeaf | NavGroup> };
-type NavRoot  = (NavLeaf | NavGroup) & { icon: Icon };
+type NavRoot = (NavLeaf | NavGroup) & { icon: Icon };
 
 const navConfig: NavRoot[] = [
   {
@@ -31,9 +31,14 @@ const navConfig: NavRoot[] = [
         key: 'pessoas',
         label: 'Pessoas',
         children: [
-          { key: 'pessoas-lista',  label: 'Listar',    href: '/dashboard/certificacao/pessoas' },
-          { key: 'pessoas-novo',   label: 'Cadastrar', href: '/dashboard/certificacao/pessoas/novo' },
+          { key: 'pessoas-lista', label: 'Listar', href: '/dashboard/certificacao/pessoas' },
+          { key: 'pessoas-novo', label: 'Cadastrar', href: '/dashboard/certificacao/pessoas/novo' },
         ],
+      },
+      {
+        key: 'produtos',
+        label: 'Produtos',
+        href: '/dashboard/certificacao/produtos',
       },
       // Adicionar: Vendas, Aprovações, etc.
     ],
@@ -50,8 +55,8 @@ const navConfig: NavRoot[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router   = useRouter();
-  const ref      = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const ref = useRef<HTMLDivElement>(null);
 
   const [openL1, setOpenL1] = useState<string | null>(null);
   const [openL2, setOpenL2] = useState<string | null>(null);
@@ -98,7 +103,7 @@ export default function Sidebar() {
       {/* ── Sidebar principal ── */}
       <aside className="w-56 flex flex-col bg-zinc-900 border-r border-zinc-800 min-h-screen">
         <div className="px-4 py-5 border-b border-zinc-800">
-          <Logo size="sm" subtitle="v2 · Console" />
+          <Logo size="sm" />
         </div>
 
         <nav className="flex-1 px-2 py-4 space-y-0.5">
@@ -110,11 +115,10 @@ export default function Sidebar() {
                   key={item.key}
                   href={item.href}
                   onClick={closeAll}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    active
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${active
                       ? 'bg-zinc-800 text-white'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
+                    }`}
                 >
                   <item.icon className={`w-4 h-4 shrink-0 ${active ? 'text-blue-400' : ''}`} />
                   {item.label}
@@ -127,11 +131,10 @@ export default function Sidebar() {
               <button
                 key={item.key}
                 onClick={() => toggleL1(item.key)}
-                className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isOpen
+                className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors ${isOpen
                     ? 'bg-zinc-800 text-white'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                }`}
+                  }`}
               >
                 <span className="flex items-center gap-2.5">
                   <item.icon className={`w-4 h-4 shrink-0 ${isOpen ? 'text-blue-400' : ''}`} />
@@ -168,9 +171,8 @@ export default function Sidebar() {
                 const active = pathname === child.href;
                 return (
                   <Link key={child.key} href={child.href} onClick={closeAll}
-                    className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                      active ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                    }`}
+                    className={`block px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                      }`}
                   >
                     {child.label}
                   </Link>
@@ -179,9 +181,8 @@ export default function Sidebar() {
               const isOpen = openL2 === child.key;
               return (
                 <button key={child.key} onClick={() => toggleL2(child.key)}
-                  className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors ${
-                    isOpen ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
+                  className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors ${isOpen ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                    }`}
                 >
                   {child.label}
                   <ChevronRight className="w-3 h-3 opacity-40" />
@@ -206,9 +207,8 @@ export default function Sidebar() {
               const active = pathname === leaf.href;
               return (
                 <Link key={leaf.key} href={leaf.href} onClick={closeAll}
-                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                    active ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
+                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                    }`}
                 >
                   {leaf.label}
                 </Link>
