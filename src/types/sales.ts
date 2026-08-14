@@ -64,6 +64,30 @@ export interface SaleDetailResponse {
   data: SaleDetail;
 }
 
+export interface TeamPerformance {
+  uuid: string;
+  name: string;
+  certificatesIssued: number;
+  isCurrentUser: boolean;
+}
+
+export interface MonthlySale {
+  month: string;
+  date: string;
+  sales: number;
+}
+
+export interface SalesDashboardData {
+  teamPerformance: TeamPerformance[];
+  monthlySales: MonthlySale[];
+}
+
+export interface SalesDashboardResponse {
+  success: boolean;
+  message: string;
+  data: SalesDashboardData;
+}
+
 export interface SalesListResponse {
   success: boolean;
   message: string;

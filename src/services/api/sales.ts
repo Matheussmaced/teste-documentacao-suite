@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { api } from './api';
-import type { CreateSalePayload, Sale, SaleDetail, SaleResponse, SaleDetailResponse, SalesListResponse } from '@/types/sales';
+import type { CreateSalePayload, Sale, SaleDetail, SaleResponse, SaleDetailResponse, SalesListResponse, SalesDashboardData, SalesDashboardResponse } from '@/types/sales';
 
 export interface SalesListResult {
   data: Sale[];
@@ -18,6 +18,25 @@ export async function getSales(params?: { page?: number }): Promise<SalesListRes
       if (status === 500) throw new Error('Erro interno do servidor.');
     }
     throw new Error('Erro ao listar vendas.');
+  }
+}
+
+export async function getSalesDashboard(params?: {
+  start_date?: string;
+  end_date?: string;
+  user_uuid?: string;
+}): Promise<SalesDashboardData> {
+  try {
+    const { data } = await api.get<SalesDashboardResponse>('/certificate/sales/dashboard', { params });
+    return data.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
+      if (status === 422) throw new Error('Parâmetros de data inválidos.');
+      if (status === 500) throw new Error('Erro interno do servidor.');
+    }
+    throw new Error('Erro ao carregar dashboard de vendas.');
   }
 }
 

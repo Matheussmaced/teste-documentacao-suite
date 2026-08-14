@@ -44,6 +44,7 @@ const navConfig: NavRoot[] = [
         key: 'vendas',
         label: 'Vendas',
         children: [
+          { key: 'vendas-dashboard', label: 'Dashboard', href: '/dashboard/vendas/dashboard' },
           { key: 'vendas-lista', label: 'Listar', href: '/dashboard/vendas' },
           { key: 'vendas-nova', label: 'Nova Venda', href: '/dashboard/vendas/nova' },
           { key: 'metodos-pagamento', label: 'Métodos de Pagamento', href: '/dashboard/vendas/metodos-pagamento' },
