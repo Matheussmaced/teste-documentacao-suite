@@ -465,6 +465,16 @@ export default function DetalheVendaPage() {
             {sale.paid_at && !sale.external_protocol && (
               <GerarProtocoloButton saleUuid={sale.uuid} onSuccess={setSale} />
             )}
+            {sale.external_protocol && !sale.issued_at && (
+              <div className="pt-3 mt-1">
+                <Link
+                  href={`/dashboard/vendas/${sale.uuid}/emissao`}
+                  className="inline-block px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                >
+                  Iniciar emissão →
+                </Link>
+              </div>
+            )}
           </Card>
 
           {/* Cliente */}
