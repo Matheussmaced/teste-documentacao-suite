@@ -4,15 +4,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPersons } from '@/services/api/persons';
 import { getUserProducts } from '@/services/api/products';
-import { createSale } from '@/services/api/sales';
+import { createSale, confirmSale } from '@/services/api/sales';
+import { getPaymentMethods } from '@/services/api/payments';
 import { getToken } from '@/lib/token';
 import type { Person, Pagination } from '@/types/persons';
 import type { UserProduct } from '@/types/products';
-import type { Sale } from '@/types/sales';
+import type { Sale, Charge } from '@/types/sales';
+import type { PaymentMethod } from '@/types/payments';
 import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
 import { EndpointBadge } from '@/components/ui/EndpointBadge';
 import { SubmitButton } from '@/components/ui/SubmitButton';
+import { GatewayPayload } from '@/components/ui/GatewayPayload';
 
 interface SaleItemDraft {
   product: UserProduct;
@@ -23,6 +26,16 @@ interface SaleItemDraft {
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function ChargeRow({ label, value }: { label: string; value: string | number | null | undefined }) {
+  const display = value === null || value === undefined || value === '' ? '—' : String(value);
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-zinc-800 last:border-0">
+      <span className="text-xs text-zinc-500 shrink-0 w-44">{label}</span>
+      <span className="text-xs text-zinc-300 text-right break-all">{display}</span>
+    </div>
+  );
 }
 
 function formatCPF(v: string) {
@@ -53,6 +66,15 @@ export default function NovaVendaPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<Sale | null>(null);
+
+  // ── Confirmar ─────────────────────────────────────────────────────
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState('');
+  const [installments, setInstallments] = useState(1);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+  const [charge, setCharge] = useState<Charge | null>(null);
 
   useEffect(() => { setHasToken(!!getToken()); }, []);
 
@@ -91,6 +113,41 @@ export default function NovaVendaPage() {
   useEffect(() => {
     if (hasToken) fetchProducts();
   }, [hasToken, fetchProducts]);
+
+  useEffect(() => {
+    if (!created) return;
+    setMethodsLoading(true);
+    getPaymentMethods()
+      .then((res) => setMethods(res.data))
+      .catch((err) => setConfirmError(err instanceof Error ? err.message : 'Erro ao carregar métodos de pagamento.'))
+      .finally(() => setMethodsLoading(false));
+  }, [created]);
+
+  async function handleConfirm(e: React.FormEvent) {
+    e.preventDefault();
+    if (!created || !selectedInstallment) return;
+    setConfirming(true);
+    setConfirmError('');
+    try {
+      const result = await confirmSale(created.uuid, selectedInstallment, installments);
+      setCharge(result.charge);
+    } catch (err) {
+      setConfirmError(err instanceof Error ? err.message : 'Erro ao confirmar venda.');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  function resetAll() {
+    setCreated(null);
+    setCharge(null);
+    setSelectedClientUuid('');
+    setItems([]);
+    setSelectedInstallment('');
+    setInstallments(1);
+    setConfirmError('');
+    setError('');
+  }
 
   function addItem() {
     if (!selectedProductUuid) return;
@@ -148,20 +205,141 @@ export default function NovaVendaPage() {
   }
 
   if (created) {
-    return (
-      <div className="max-w-xl">
-        <h1 className="text-white font-semibold text-xl mb-1">Nova Venda</h1>
-        <Alert variant="success" title="Venda criada com sucesso" className="mt-6">
-          <p className="font-mono text-xs">{created.uuid}</p>
-          <div className="mt-3 flex gap-3">
+    const selectedRule = methods.flatMap((m) => m.installment_rules).find((r) => r.uuid === selectedInstallment);
+
+    if (charge) {
+      return (
+        <div className="max-w-xl">
+          <h1 className="text-white font-semibold text-xl mb-1">Nova Venda</h1>
+          <p className="text-zinc-500 text-sm mb-6">Venda confirmada com sucesso.</p>
+
+          <Card className="p-6 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-zinc-500">Venda confirmada</p>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded border bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                Confirmado
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-4 py-2.5 border-b border-zinc-800">
+              <span className="text-xs text-zinc-500 shrink-0 w-44">UUID da venda</span>
+              <span className="text-xs text-zinc-300 text-right break-all font-mono">{created.uuid}</span>
+            </div>
+          </Card>
+
+          <Card className="p-6 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-zinc-500">Cobrança gerada</p>
+              <EndpointBadge method="POST" path={`/certificate/sales/${created.uuid}/confirm`} visibility="Autenticado" />
+            </div>
+            <div className="space-y-0">
+              <ChargeRow label="UUID" value={charge.uuid} />
+              {charge.description && <ChargeRow label="Descrição" value={charge.description} />}
+              <ChargeRow label="Valor" value={Number(charge.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+              <ChargeRow label="Parcelas" value={charge.installments} />
+              <ChargeRow label="Status" value={charge.status} />
+              {charge.due_date && <ChargeRow label="Vencimento" value={new Date(charge.due_date).toLocaleDateString('pt-BR')} />}
+            </div>
+            {charge.response_payload && Object.keys(charge.response_payload).length > 0 && (
+              <GatewayPayload payload={charge.response_payload} />
+            )}
+          </Card>
+
+          <div className="flex gap-3">
             <button
-              onClick={() => { setCreated(null); setSelectedClientUuid(''); setItems([]); }}
-              className="text-xs text-green-400 hover:text-green-300 transition-colors"
+              onClick={resetAll}
+              className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs transition-colors"
             >
               Nova venda
             </button>
+            <button
+              onClick={() => router.push(`/dashboard/vendas/${created.uuid}`)}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+            >
+              Ver detalhes da venda
+            </button>
           </div>
-        </Alert>
+        </div>
+      );
+    }
+
+    return (
+      <div className="max-w-xl">
+        <h1 className="text-white font-semibold text-xl mb-1">Nova Venda</h1>
+        <p className="text-zinc-500 text-sm mb-6">Venda criada. Confirme para gerar a cobrança.</p>
+
+        <Card className="p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs text-zinc-500">Venda criada</p>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded border bg-zinc-700 text-zinc-400 border-zinc-600">
+              Pendente
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-4 py-2.5">
+            <span className="text-xs text-zinc-500 shrink-0 w-44">UUID</span>
+            <span className="text-xs text-zinc-300 text-right break-all font-mono">{created.uuid}</span>
+          </div>
+        </Card>
+
+        <Card className="p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs text-zinc-500">Confirmar venda</p>
+            <EndpointBadge method="POST" path={`/certificate/sales/${created.uuid}/confirm`} visibility="Autenticado" />
+          </div>
+
+          <form onSubmit={handleConfirm} className="space-y-3">
+            <div>
+              <label className="text-[11px] text-zinc-500 block mb-1.5">Método de pagamento</label>
+              <select
+                value={selectedInstallment}
+                onChange={(e) => { setSelectedInstallment(e.target.value); setInstallments(1); }}
+                disabled={methodsLoading}
+                className="w-full rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 px-3 py-2.5 transition-colors disabled:opacity-50"
+              >
+                <option value="">{methodsLoading ? 'Carregando...' : 'Selecione um método de pagamento...'}</option>
+                {methods.map((method) =>
+                  method.installment_rules.map((rule) => (
+                    <option key={rule.uuid} value={rule.uuid}>
+                      {method.name} — {rule.name}
+                      {rule.min_installments !== rule.max_installments
+                        ? ` (${rule.min_installments}x–${rule.max_installments}x)`
+                        : ` (${rule.min_installments}x)`}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {selectedRule && selectedRule.max_installments > 1 && (
+              <div>
+                <label className="text-[11px] text-zinc-500 block mb-1.5">Parcelas</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={selectedRule.min_installments}
+                    max={selectedRule.max_installments}
+                    value={installments}
+                    onChange={(e) => setInstallments(Math.min(selectedRule.max_installments, Math.max(selectedRule.min_installments, Number(e.target.value))))}
+                    className="w-24 rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 px-3 py-2 transition-colors"
+                  />
+                  <span className="text-[11px] text-zinc-600">{selectedRule.min_installments}x–{selectedRule.max_installments}x</span>
+                </div>
+              </div>
+            )}
+
+            {confirmError && <p className="text-xs text-red-400">{confirmError}</p>}
+
+            <div className="flex gap-2 pt-1">
+              <SubmitButton loading={confirming} label="Confirmar e gerar cobrança" loadingLabel="Confirmando..." />
+              <button
+                type="button"
+                onClick={resetAll}
+                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </Card>
       </div>
     );
   }

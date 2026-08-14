@@ -6,11 +6,12 @@ import { getSale, updateSaleClient, confirmSale } from '@/services/api/sales';
 import { getPersons } from '@/services/api/persons';
 import { getPaymentMethods } from '@/services/api/payments';
 import type { PaymentMethod } from '@/types/payments';
-import type { SaleDetail } from '@/types/sales';
+import type { SaleDetail, Charge } from '@/types/sales';
 import type { Person, Pagination } from '@/types/persons';
 import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
 import { EndpointBadge } from '@/components/ui/EndpointBadge';
+import { GatewayPayload } from '@/components/ui/GatewayPayload';
 
 function Row({ label, value }: { label: string; value?: string | number | boolean | null }) {
   const display =
@@ -185,32 +186,44 @@ function ConfirmarVendaPanel({ saleUuid, onSuccess }: { saleUuid: string; onSucc
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState('');
+  const [installments, setInstallments] = useState(1);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
+  const [charge, setCharge] = useState<Charge | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setMethodsLoading(true);
     getPaymentMethods()
-      .then((res) => setMethods(res.data.filter((m) => m.active && m.installment_rules.length > 0)))
-      .catch(() => setMethods([]))
+      .then((res) => setMethods(res.data))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar métodos de pagamento.'))
       .finally(() => setMethodsLoading(false));
   }, [open]);
+
+  const selectedRule = methods.flatMap((m) => m.installment_rules).find((r) => r.uuid === selectedInstallment);
 
   async function handleConfirm() {
     if (!selectedInstallment) return;
     setConfirming(true);
     setError('');
     try {
-      const updated = await confirmSale(saleUuid, selectedInstallment);
-      onSuccess(updated);
-      setOpen(false);
-      setSelectedInstallment('');
+      const result = await confirmSale(saleUuid, selectedInstallment, installments);
+      setCharge(result.charge);
+      onSuccess({ ...result.sale, charges: [], appointments: [], certificate_renewals: [], soluti_emit_data: [] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao confirmar venda.');
     } finally {
       setConfirming(false);
     }
+  }
+
+  if (charge) {
+    return (
+      <div className="mt-4 pt-4 border-t border-zinc-800">
+        <p className="text-xs text-green-400 font-medium mb-3">Venda confirmada — cobrança gerada</p>
+        <ChargeCard charge={charge} />
+      </div>
+    );
   }
 
   if (!open) {
@@ -227,13 +240,13 @@ function ConfirmarVendaPanel({ saleUuid, onSuccess }: { saleUuid: string; onSucc
   return (
     <div className="mt-4 pt-4 border-t border-zinc-800">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-zinc-400 font-medium">Selecionar método de pagamento</p>
+        <p className="text-xs text-zinc-400 font-medium">Confirmar venda</p>
         <EndpointBadge method="POST" path={`/certificate/sales/${saleUuid}/confirm`} visibility="Autenticado" />
       </div>
 
       <select
         value={selectedInstallment}
-        onChange={(e) => setSelectedInstallment(e.target.value)}
+        onChange={(e) => { setSelectedInstallment(e.target.value); setInstallments(1); }}
         disabled={methodsLoading}
         className="w-full rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 px-3 py-2.5 transition-colors disabled:opacity-50 mb-2"
       >
@@ -250,6 +263,21 @@ function ConfirmarVendaPanel({ saleUuid, onSuccess }: { saleUuid: string; onSucc
         )}
       </select>
 
+      {selectedRule && selectedRule.max_installments > 1 && (
+        <div className="mb-2">
+          <label className="text-[11px] text-zinc-500 block mb-1">Parcelas</label>
+          <input
+            type="number"
+            min={selectedRule.min_installments}
+            max={selectedRule.max_installments}
+            value={installments}
+            onChange={(e) => setInstallments(Math.min(selectedRule.max_installments, Math.max(selectedRule.min_installments, Number(e.target.value))))}
+            className="w-24 rounded-lg bg-zinc-800 border border-zinc-700 focus:border-blue-500 focus:outline-none text-sm text-zinc-100 px-3 py-2 transition-colors"
+          />
+          <span className="text-[11px] text-zinc-600 ml-2">{selectedRule.min_installments}x–{selectedRule.max_installments}x</span>
+        </div>
+      )}
+
       {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
 
       <div className="flex gap-2">
@@ -261,13 +289,29 @@ function ConfirmarVendaPanel({ saleUuid, onSuccess }: { saleUuid: string; onSucc
           {confirming ? 'Confirmando...' : 'Confirmar venda'}
         </button>
         <button
-          onClick={() => { setOpen(false); setSelectedInstallment(''); setError(''); }}
+          onClick={() => { setOpen(false); setSelectedInstallment(''); setError(''); setInstallments(1); }}
           disabled={confirming}
           className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs transition-colors"
         >
           Cancelar
         </button>
       </div>
+    </div>
+  );
+}
+
+function ChargeCard({ charge }: { charge: Charge }) {
+  return (
+    <div className="space-y-1.5">
+      <Row label="UUID" value={charge.uuid} />
+      {charge.description && <Row label="Descrição" value={charge.description} />}
+      <Row label="Valor" value={Number(charge.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+      <Row label="Parcelas" value={charge.installments} />
+      <Row label="Status" value={charge.status} />
+      {charge.due_date && <Row label="Vencimento" value={new Date(charge.due_date).toLocaleDateString('pt-BR')} />}
+      {charge.response_payload && Object.keys(charge.response_payload).length > 0 && (
+        <GatewayPayload payload={charge.response_payload} />
+      )}
     </div>
   );
 }

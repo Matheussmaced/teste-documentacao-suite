@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { api } from './api';
-import type { CreateSalePayload, Sale, SaleDetail, SaleResponse, SaleDetailResponse, SalesListResponse, SalesDashboardData, SalesDashboardResponse } from '@/types/sales';
+import type { CreateSalePayload, Sale, SaleDetail, SaleResponse, SaleDetailResponse, SalesListResponse, SalesDashboardData, SalesDashboardResponse, ConfirmSaleResult, ConfirmSaleResponse } from '@/types/sales';
 
 export interface SalesListResult {
   data: Sale[];
@@ -73,16 +73,22 @@ export async function updateSaleClient(uuid: string, clientUuid: string): Promis
   }
 }
 
-export async function confirmSale(uuid: string, paymentMethodInstallment: string): Promise<SaleDetail> {
+export async function confirmSale(
+  uuid: string,
+  paymentMethodInstallment: string,
+  installments = 1,
+): Promise<ConfirmSaleResult> {
   try {
-    const { data } = await api.post<SaleDetailResponse>(`/certificate/sales/${uuid}/confirm`, {
+    const { data } = await api.post<ConfirmSaleResponse>(`/certificate/sales/${uuid}/confirm`, {
       payment_method_installment: paymentMethodInstallment,
+      installments,
     });
     return data.data;
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;
       const body = err.response?.data;
+      if (status === 400) throw new Error(body?.message ?? 'Venda já confirmada ou método de pagamento inválido.');
       if (status === 401) throw new Error('Token ausente, inválido ou expirado.');
       if (status === 404) throw new Error('Venda não encontrada.');
       if (status === 422) throw new Error(body?.message ?? 'Erro de validação dos campos enviados.');

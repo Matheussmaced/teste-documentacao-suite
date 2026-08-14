@@ -64,6 +64,36 @@ export interface SaleDetailResponse {
   data: SaleDetail;
 }
 
+export interface Charge {
+  uuid: string;
+  person_uuid: string;
+  source_uuid: string;
+  source_type: string;
+  payment_method_uuid: string;
+  payment_installment_rule_uuid: string;
+  installments: number;
+  amount: number;
+  due_date: string | null;
+  status: string;
+  description: string | null;
+  request_payload: Record<string, unknown> | null;
+  response_payload: Record<string, unknown> | null;
+  payment_method: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConfirmSaleResult {
+  sale: Sale;
+  charge: Charge;
+}
+
+export interface ConfirmSaleResponse {
+  success: boolean;
+  message: string;
+  data: ConfirmSaleResult;
+}
+
 export interface TeamPerformance {
   uuid: string;
   name: string;
